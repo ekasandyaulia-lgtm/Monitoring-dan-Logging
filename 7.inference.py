@@ -1,28 +1,26 @@
 import requests
+import pandas as pd
 import time
 import random
+import os
 
-# URL endpoint Flask + Prometheus
 PREDICT_URL = "http://127.0.0.1:8000/predict"
 
-X_test = [
-    {"PassengerId":147,"Pclass":3,"Age":27,"SibSp":0,"Parch":0,"Fare":7.7958,
-     "Age_scaled":-0.1814,"Fare_scaled":-0.4914,"SibSp_scaled":-0.4745,
-     "Parch_scaled":-0.4736,"Pclass_scaled":0.8273,"Sex_encoded":1},
-    {"PassengerId":417,"Pclass":2,"Age":34,"SibSp":1,"Parch":1,"Fare":32.5,
-     "Age_scaled":0.3564,"Fare_scaled":0.0059,"SibSp_scaled":0.4327,
-     "Parch_scaled":0.7676,"Pclass_scaled":-0.3693,"Sex_encoded":0},
-    {"PassengerId":49,"Pclass":3,"Age":28,"SibSp":2,"Parch":0,"Fare":21.6792,
-     "Age_scaled":-0.1046,"Fare_scaled":-0.2119,"SibSp_scaled":1.3401,
-     "Parch_scaled":-0.4736,"Pclass_scaled":0.8273,"Sex_encoded":1},
-]
+# Load X_test
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "processed_data")
+X_test = pd.read_csv(os.path.join(DATA_DIR, "X_test.csv"))
+
+MODEL_COLUMNS = ["PassengerId","Pclass","Age","SibSp","Parch","Fare",
+                 "Age_scaled","Fare_scaled","SibSp_scaled","Parch_scaled",
+                 "Pclass_scaled","Sex_encoded"]
+X_test = X_test[MODEL_COLUMNS].astype(float)
 
 def send_requests(n_times=50, delay=0.1):
-    """Send multiple requests to /predict to simulate load."""
     for i in range(n_times):
-        data = random.choice(X_test)
+        row = X_test.sample(n=1).iloc[0].to_dict()  # ambil 1 row random
         try:
-            resp = requests.post(PREDICT_URL, json=data, timeout=5)
+            resp = requests.post(PREDICT_URL, json=row, timeout=5)
             if resp.status_code == 200:
                 print(f"[{i+1}] Prediction:", resp.json()["prediction"])
             else:
