@@ -1,46 +1,36 @@
-from flask import Flask, request, jsonify
-import pandas as pd
-import mlflow
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+import requests
+import time
+import random
 
-mlflow.set_tracking_uri(
-    "https://dagshub.com/ekasandyaulia-lgtm/SMLS_Eka_Sandy_Aulia_Puspitasari.mlflow"
-)
-model_uri = "models:/model/1"
-model = mlflow.sklearn.load_model(model_uri)
+# URL endpoint Flask + Prometheus
+PREDICT_URL = "http://127.0.0.1:8000/predict"
 
-app = Flask(__name__)
+X_test = [
+    {"PassengerId":147,"Pclass":3,"Age":27,"SibSp":0,"Parch":0,"Fare":7.7958,
+     "Age_scaled":-0.1814,"Fare_scaled":-0.4914,"SibSp_scaled":-0.4745,
+     "Parch_scaled":-0.4736,"Pclass_scaled":0.8273,"Sex_encoded":1},
+    {"PassengerId":417,"Pclass":2,"Age":34,"SibSp":1,"Parch":1,"Fare":32.5,
+     "Age_scaled":0.3564,"Fare_scaled":0.0059,"SibSp_scaled":0.4327,
+     "Parch_scaled":0.7676,"Pclass_scaled":-0.3693,"Sex_encoded":0},
+    {"PassengerId":49,"Pclass":3,"Age":28,"SibSp":2,"Parch":0,"Fare":21.6792,
+     "Age_scaled":-0.1046,"Fare_scaled":-0.2119,"SibSp_scaled":1.3401,
+     "Parch_scaled":-0.4736,"Pclass_scaled":0.8273,"Sex_encoded":1},
+]
 
-# Kolom numeric yang digunakan model
-MODEL_COLUMNS = ["PassengerId","Pclass","Age","SibSp","Parch","Fare",
-                 "Age_scaled","Fare_scaled","SibSp_scaled","Parch_scaled",
-                 "Pclass_scaled","Sex_encoded"]
-
-# Prometheus metrics
-REQUEST_COUNT = Counter("request_count_total", "Total requests")
-REQUEST_ERRORS = Counter("request_errors_total", "Total failed requests")
-REQUEST_LATENCY = Histogram("request_latency_seconds", "Request latency in seconds")
-
-@app.route("/predict", methods=["POST"])
-def predict():
-    import time
-    start = time.time()
-    REQUEST_COUNT.inc()
-    try:
-        data = request.json
-        df = pd.DataFrame([data])
-        df = df[MODEL_COLUMNS].astype(float)
-        prediction = model.predict(df)
-        return jsonify({"prediction": int(prediction[0])})
-    except Exception:
-        REQUEST_ERRORS.inc()
-        return jsonify({"error": "Something went wrong"}), 500
-    finally:
-        REQUEST_LATENCY.observe(time.time() - start)
-
-@app.route("/metrics")
-def metrics():
-    return generate_latest(), 200, {"Content-Type": CONTENT_TYPE_LATEST}
+def send_requests(n_times=50, delay=0.1):
+    """Send multiple requests to /predict to simulate load."""
+    for i in range(n_times):
+        data = random.choice(X_test)
+        try:
+            resp = requests.post(PREDICT_URL, json=data, timeout=5)
+            if resp.status_code == 200:
+                print(f"[{i+1}] Prediction:", resp.json()["prediction"])
+            else:
+                print(f"[{i+1}] Error:", resp.json())
+        except Exception as e:
+            print(f"[{i+1}] Request failed:", str(e))
+        time.sleep(delay)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+    send_requests()
+    print("Inference load test selesai!")

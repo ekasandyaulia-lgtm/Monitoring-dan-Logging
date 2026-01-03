@@ -1,7 +1,8 @@
 global:
   scrape_interval: 5s
+  evaluation_interval: 5s
 
 scrape_configs:
-  - job_name: "ml_inference_api"
+  - job_name: 'ml_model'
     static_configs:
-      - targets: ["localhost:8000"]
+      - targets: ['host.docker.internal:8000']
